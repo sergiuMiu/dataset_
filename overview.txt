@@ -1,0 +1,41 @@
+1. am curatat/reformatat website_dataset pentru a se asemana cu celalate 2 care la prima vedere par mai bine formatate.
+am lipit totul intr-o singura coloana si dupa am realizat un tabel folosind ";" ca separatorul dintre coloane.
+2. Am facut asta pentru a avea 3 surse asemanatoare pentru a le importa in MS SQL server.
+3. dupa ce aveam cele 3 tabele in SQL Server am inceput sa ma gandesc ce pot face cu ele.
+4. Singurul lucru la care m-am gandit si parea folositor era sa le unesc in speranta ca daca un tabel nu contine
+o coloana, poate se gaseste in celelalte 2.
+
+Astfel am ajuns la aceasta interogare a carui rezultate se gaseste in dataset_4: 
+
+WITH RankedData AS (
+    SELECT 
+        f.domain,
+        COALESCE(f.Categories, g.category, w.s_category) AS Category,
+        COALESCE(f.address, g.raw_address, w.main_country) AS Address,
+        COALESCE(f.phone, g.phone) AS Phone,
+        COALESCE(w.legal_name, f.name, g.name) AS Company_Name,
+        ROW_NUMBER() OVER (
+            PARTITION BY f.domain 
+            ORDER BY 
+                f.Categories DESC, 
+                f.address DESC, 
+                f.phone DESC, 
+                w.legal_name DESC
+        ) AS rn
+    FROM dbo.facebook_dataset f
+    FULL OUTER JOIN dbo.google_dataset g ON f.domain = g.domain
+    FULL OUTER JOIN dbo.website_dataset w ON f.domain = w.root_domain
+)
+SELECT 
+Company_Name,
+    domain,
+    Category,
+    Address,
+    Phone
+    
+FROM RankedData
+WHERE rn = 1;
+
+am incercat sa pun pe primul loc coloanele care mi se pareau cele mai pline de continut(de exemplu in facebook_dataset 
+coloana de categorie cuprindea mai multe informatii, sau la denumirea companiilor website_dataset avea denumirile complete), iar
+in cazul in care acestea erau null se trecea la celelalte tabele.
